@@ -7,7 +7,6 @@ std::vector<WorkThreadStealQueue*> g_threadsJobQueue;
 #pragma region JobSystem生命周期
 void JobSystem::Initialize() {
 	numThreads = std::thread::hardware_concurrency();
-
 	g_threadsJobQueue.resize(numThreads);
 	tlthreadIndex = new int(0); 
 	g_threadsJobQueue[0] = new WorkThreadStealQueue();
@@ -117,7 +116,7 @@ Job* JobSystem::CreateJob(JobFunction func) {
 }
 
 Job* JobSystem::CreateJob(Job* parent, JobFunction func) {
-	parent->_unfinishedJob++; // �̰߳�ȫ����
+	parent->_unfinishedJob.fetch_add(1, std::memory_order_relaxed); // �̰߳�ȫ����
 
 	Job* job = g_jobAllocator.AllocateJob();
 	job->_func = func;
@@ -148,7 +147,7 @@ void JobSystem::ExecuteJob(Job* job) {
 /// </summary>
 /// <param name="job"></param>
 void JobSystem::FinishJob(Job* job) {
-	const int32_t unfinishedJobs = --job->_unfinishedJob;
+	const int32_t unfinishedJobs = job->_unfinishedJob.fetch_sub(1, std::memory_order_relaxed) - 1;
 	if (unfinishedJobs == 0)
 	{
 		if (job->_parent)

@@ -17,7 +17,7 @@ struct Job {
 	Job* _parent;
 	std::atomic<int32_t> _unfinishedJob;
 	void* data;
-	char padding[DATA_SIZE];
+	char padding[CACHE_LINE_SIZE - DATA_SIZE];
 };
 
 

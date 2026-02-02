@@ -6,7 +6,11 @@
 
 // 测试Job函数：简单计算任务
 void SimpleTask(Job* job, void* data) {
-
+    // 模拟一些计算工作
+    volatile int sum = 0;
+    for (int i = 0; i < 100000; i++) {
+        sum += i * i;
+    }
 }
 
 // 测试Job函数：嵌套任务
@@ -62,13 +66,13 @@ int main() {
         std::vector<Job*> jobs;
 
 
-        // 1. 创建简单任务
-     /*   for (int i = 0; i < JOBS_PER_FRAME ; i++) {
-            Job* job = jobSystem.CreateJob(SimpleTask);
-            jobs.push_back(job);
-            jobSystem.RunJob(job);
-            jobSystem.WaitJob(job);
-        }*/
+        //// 1. 创建简单任务
+        //for (int i = 0; i < JOBS_PER_FRAME ; i++) {
+        //    Job* job = jobSystem.CreateJob(SimpleTask);
+        //    jobs.push_back(job);
+        //    jobSystem.RunJob(job);
+        //    jobSystem.WaitJob(job);
+        //}
         
         Job* Root = jobSystem.CreateJob(SimpleTask);
         jobs.push_back(Root);
