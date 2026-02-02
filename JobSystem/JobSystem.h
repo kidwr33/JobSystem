@@ -37,7 +37,7 @@ private:
 	void WorkerThreadFunction(int threadIndex);
 	WorkThreadStealQueue* GetWorkerThreadQueue();
 	Job* GetJob();
-	bool HasJobCompleted(Job* job) { return job->_unfinishedJob == -1; }
+	bool HasJobCompleted(Job* job) { return job->_unfinishedJob == 0; }
 private:
 	void Yield() { std::this_thread::yield(); }
 	int GenerateRandomNumber(int rangeStart, int rangeEnd) { //×ó±ÕÓÒ¿ª

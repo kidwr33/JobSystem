@@ -1,13 +1,12 @@
 #include "JobSystem.h"
 thread_local int* tlthreadIndex = nullptr;
+thread_local JobAllocator g_jobAllocator;
 std::vector<WorkThreadStealQueue*> g_threadsJobQueue;
-std::atomic<int> g_jobToDeleteCount{0};
-Job** g_jobsToDelete;
+
 
 #pragma region JobSystem生命周期
 void JobSystem::Initialize() {
 	numThreads = std::thread::hardware_concurrency();
-	if (numThreads == 0) numThreads = 4;
 
 	g_threadsJobQueue.resize(numThreads);
 	tlthreadIndex = new int(0); 
@@ -20,11 +19,8 @@ void JobSystem::Initialize() {
 		g_threadsJobQueue[i + 1] = new WorkThreadStealQueue();
 	}
 
-	if (g_jobsToDelete != nullptr) {
-		delete[] g_jobsToDelete;
-	}
 	size_t size = static_cast<size_t>(MAX_NUMBER_OF_JOBS_PERTTHREAD) * numThreads;
-	g_jobsToDelete = new Job*[size](); 
+	g_jobAllocator.Initialize(MAX_NUMBER_OF_JOBS_PERTTHREAD); 
 
 	isRunning = true;
 
@@ -36,12 +32,6 @@ void JobSystem::FrameStart()
 
 void JobSystem::FrameEnd()
 {
-	int count = g_jobToDeleteCount.load();
-	for (int i = 0; i < g_jobToDeleteCount; i++) {
-		DeleteJob(g_jobsToDelete[i]);
-		g_jobsToDelete[i] = nullptr; //置空防止数据污染
-	}
-	g_jobToDeleteCount.store(0);
 }
 
 void JobSystem::ShutDown()
@@ -63,10 +53,6 @@ void JobSystem::ShutDown()
 	g_threadsJobQueue.clear();
 
 	delete tlthreadIndex;
-	if (g_jobsToDelete != nullptr) {
-		delete[] g_jobsToDelete;
-		g_jobsToDelete = nullptr;
-	}
 
 }
 
@@ -76,6 +62,7 @@ void JobSystem::ShutDown()
 
 void JobSystem::WorkerThreadFunction(int threadIndex) {
 		tlthreadIndex = new int(threadIndex);
+		g_jobAllocator.Initialize(MAX_NUMBER_OF_JOBS_PERTTHREAD);
 		while (isRunning) {
 			Job* job = GetJob();
 			if (job)
@@ -122,7 +109,7 @@ Job* JobSystem::GetJob() {
 }
 #pragma region Job生命周期
 Job* JobSystem::CreateJob(JobFunction func) {
-	Job* job = AllocateJob();
+	Job* job = g_jobAllocator.AllocateJob();
 	job->_func = func;
 	job->_parent = nullptr;
 	job->_unfinishedJob = 1;
@@ -132,7 +119,7 @@ Job* JobSystem::CreateJob(JobFunction func) {
 Job* JobSystem::CreateJob(Job* parent, JobFunction func) {
 	parent->_unfinishedJob++; // �̰߳�ȫ����
 
-	Job* job = AllocateJob();
+	Job* job = g_jobAllocator.AllocateJob();
 	job->_func = func;
 	job->_parent = parent;
 	job->_unfinishedJob = 1;
@@ -164,15 +151,11 @@ void JobSystem::FinishJob(Job* job) {
 	const int32_t unfinishedJobs = --job->_unfinishedJob;
 	if (unfinishedJobs == 0)
 	{
-		const int32_t index = ++g_jobToDeleteCount;
-		g_jobsToDelete[index - 1] = job;
-
 		if (job->_parent)
 		{
 			FinishJob(job->_parent);
 		}
 
-		job->_unfinishedJob--;
 	}
 }
 #pragma endregion

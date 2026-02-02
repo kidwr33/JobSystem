@@ -42,7 +42,7 @@ int main() {
 
     // 测试参数
     const int TOTAL_FRAMES = 10;
-    const int JOBS_PER_FRAME = 4096 ;
+    const int JOBS_PER_FRAME = 4095;
     const int CHILD_JOBS_PER_PARENT = 5;
 
     std::vector<FrameStats> frameStats;
@@ -63,13 +63,22 @@ int main() {
 
 
         // 1. 创建简单任务
-        for (int i = 0; i < JOBS_PER_FRAME ; i++) {
+     /*   for (int i = 0; i < JOBS_PER_FRAME ; i++) {
             Job* job = jobSystem.CreateJob(SimpleTask);
             jobs.push_back(job);
             jobSystem.RunJob(job);
             jobSystem.WaitJob(job);
+        }*/
+        
+        Job* Root = jobSystem.CreateJob(SimpleTask);
+        jobs.push_back(Root);
+        for (int i = 0; i < JOBS_PER_FRAME; i++) {
+            Job* job = jobSystem.CreateJob(Root, SimpleTask);
+            jobs.push_back(job);
+            jobSystem.RunJob(job);
         }
-
+        jobSystem.RunJob(Root);
+        jobSystem.WaitJob(Root);
       
         //// 2. 创建嵌套任务（父任务+子任务）
         //for (int i = 0; i < JOBS_PER_FRAME / 10; i++) {
