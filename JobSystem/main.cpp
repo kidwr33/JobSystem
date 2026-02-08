@@ -211,6 +211,76 @@ int main() {
     std::cout << std::endl;
     std::cout << "Speedup: " << speedup << "x" << std::endl;
 
+    // 测试 Continuation
+    std::cout << std::endl;
+    std::cout << "=== Continuation Test ===" << std::endl;
+
+    // 测试 1: 简单的链式依赖 A -> B -> C
+    std::cout << "Test 1: Simple chain (A -> B -> C)" << std::endl;
+
+    Job* jobA = jobSystem.CreateJob([](Job* job, void* data) {
+        std::cout << "  Job A executing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::cout << "  Job A completed" << std::endl;
+    });
+
+    Job* jobB = jobSystem.CreateJob([](Job* job, void* data) {
+        std::cout << "  Job B executing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::cout << "  Job B completed" << std::endl;
+    });
+
+    Job* jobC = jobSystem.CreateJob([](Job* job, void* data) {
+        std::cout << "  Job C executing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::cout << "  Job C completed" << std::endl;
+    });
+
+    // 设置依赖关系: A -> B -> C
+    jobSystem.AddContinuation(jobA, jobB);
+    jobSystem.AddContinuation(jobB, jobC);
+
+    jobSystem.RunJob(jobA);
+    jobSystem.WaitJob(jobC);
+    std::cout << "Chain test completed!" << std::endl;
+
+    // 测试 2: 复杂依赖 - A 和 B 完成后执行 C
+    std::cout << std::endl;
+    std::cout << "Test 2: Multiple dependencies (A and B -> C)" << std::endl;
+
+    // 创建同步 Job 作为 A 和 B 的父节点
+    Job* syncJob = jobSystem.CreateJob([](Job* job, void* data) {
+        std::cout << "  Sync job - All dependencies completed" << std::endl;
+    });
+
+    Job* jobA2 = jobSystem.CreateJob(syncJob, [](Job* job, void* data) {
+        std::cout << "  Job A2 executing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        std::cout << "  Job A2 completed" << std::endl;
+    });
+
+    Job* jobB2 = jobSystem.CreateJob(syncJob, [](Job* job, void* data) {
+        std::cout << "  Job B2 executing..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::cout << "  Job B2 completed" << std::endl;
+    });
+
+    Job* jobC2 = jobSystem.CreateJob([](Job* job, void* data) {
+        std::cout << "  Job C2 executing (after A2 and B2)..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::cout << "  Job C2 completed" << std::endl;
+    });
+
+    // syncJob 完成后触发 C2
+    jobSystem.AddContinuation(syncJob, jobC2);
+
+    // 运行所有作业
+    jobSystem.RunJob(jobA2);
+    jobSystem.RunJob(jobB2);
+    jobSystem.RunJob(syncJob);
+    jobSystem.WaitJob(jobC2);
+    std::cout << "Multiple dependencies test completed!" << std::endl;
+
     // 关闭JobSystem
     std::cout << std::endl;
     std::cout << "Shutting down JobSystem..." << std::endl;

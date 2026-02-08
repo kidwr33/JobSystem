@@ -8,21 +8,26 @@ std::vector<WorkThreadStealQueue*> g_threadsJobQueue;
 void JobSystem::Initialize() {
 	numThreads = std::thread::hardware_concurrency();
 	g_threadsJobQueue.resize(numThreads);
-	tlthreadIndex = new int(0); 
-	g_threadsJobQueue[0] = new WorkThreadStealQueue();
-	for (int i = 0; i < numThreads - 1; i++)
+
+	// First, create all queues before starting threads
+	for (int i = 0; i < numThreads; i++)
 	{
-		 workerThreads.emplace_back([this, i]() {
-			WorkerThreadFunction(i + 1);
-			});
-		g_threadsJobQueue[i + 1] = new WorkThreadStealQueue();
+		g_threadsJobQueue[i] = new WorkThreadStealQueue();
 	}
 
-	size_t size = static_cast<size_t>(MAX_NUMBER_OF_JOBS_PERTTHREAD) * numThreads;
-	g_jobAllocator.Initialize(MAX_NUMBER_OF_JOBS_PERTTHREAD); 
+	// Initialize main thread
+	tlthreadIndex = new int(0);
+	g_jobAllocator.Initialize(MAX_NUMBER_OF_JOBS_PERTTHREAD);
 
 	isRunning = true;
 
+	// Now start worker threads
+	for (int i = 0; i < numThreads - 1; i++)
+	{
+		workerThreads.emplace_back([this, i]() {
+			WorkerThreadFunction(i + 1);
+		});
+	}
 }
 
 void JobSystem::FrameStart()
@@ -86,9 +91,11 @@ Job* JobSystem::GetJob() {
 		// this is not a valid job because our own queue is empty, so try stealing from some other queue
 		unsigned int randomIndex = GenerateRandomNumber(0, numThreads);
 		WorkThreadStealQueue* stealQueue = g_threadsJobQueue[randomIndex];
-		if (stealQueue == queue)
+
+		// Check if the steal queue is valid and not the same as our queue
+		if (stealQueue == nullptr || stealQueue == queue)
 		{
-			// don't try to steal from ourselves
+			// don't try to steal from ourselves or invalid queue
 			Yield();
 			return nullptr;
 		}
@@ -112,6 +119,11 @@ Job* JobSystem::CreateJob(JobFunction func) {
 	job->_func = func;
 	job->_parent = nullptr;
 	job->_unfinishedJob = 1;
+	job->continuationCount = 0;
+	// 初始化 continuations 数组
+	for (size_t i = 0; i < MAX_JOB_CONTINUATIONS; i++) {
+		job->continuations[i] = nullptr;
+	}
 	return job;
 }
 
@@ -122,6 +134,11 @@ Job* JobSystem::CreateJob(Job* parent, JobFunction func) {
 	job->_func = func;
 	job->_parent = parent;
 	job->_unfinishedJob = 1;
+	job->continuationCount = 0;
+	// 初始化 continuations 数组
+	for (size_t i = 0; i < MAX_JOB_CONTINUATIONS; i++) {
+		job->continuations[i] = nullptr;
+	}
 	return job;
 }
 
@@ -143,6 +160,22 @@ void JobSystem::ExecuteJob(Job* job) {
 	FinishJob(job);
 }
 
+void JobSystem::AddContinuation(Job* job, Job* continuation) {
+	// 原子地增加 continuation 计数并获取索引
+	const int32_t index = job->continuationCount.fetch_add(1, std::memory_order_relaxed);
+
+	// 检查是否超出最大 continuation 数量
+	if (index >= MAX_JOB_CONTINUATIONS) {
+		// 超出限制，可以选择抛出异常或记录错误
+		// 这里简单处理：减回计数
+		job->continuationCount.fetch_sub(1, std::memory_order_relaxed);
+		return;
+	}
+
+	// 将 continuation 添加到数组中
+	job->continuations[index] = continuation;
+}
+
 /// <summary>
 /// </summary>
 /// <param name="job"></param>
@@ -150,11 +183,20 @@ void JobSystem::FinishJob(Job* job) {
 	const int32_t unfinishedJobs = job->_unfinishedJob.fetch_sub(1, std::memory_order_relaxed) - 1;
 	if (unfinishedJobs == 0)
 	{
+		// 触发所有 continuations
+		const int32_t count = job->continuationCount.load(std::memory_order_relaxed);
+		for (int32_t i = 0; i < count; i++) {
+			Job* continuation = job->continuations[i];
+			if (continuation != nullptr) {
+				RunJob(continuation);
+			}
+		}
+
+		// 通知父 Job
 		if (job->_parent)
 		{
 			FinishJob(job->_parent);
 		}
-
 	}
 }
 #pragma endregion

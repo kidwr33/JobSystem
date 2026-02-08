@@ -16,20 +16,21 @@ private:
 	int numThreads;
 
 public:
-#pragma region JobSystemÉúÃüÖÜÆÚ
+#pragma region JobSystemï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	void Initialize();
 	void FrameStart();
 	void FrameEnd();
 	void ShutDown();
 #pragma endregion
 
-#pragma region JobÉúÃüÖÜÆÚ
+#pragma region Jobï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	Job* CreateJob(JobFunction func);
 	Job* CreateJob(Job* parent, JobFunction func);
-	void RunJob(Job* job); // ¸Ğ¾õÕâÀïÃüÃû²»ÊÇºÜºÃ£¬RunÊÇÈÃJobÓĞ±»Ö´ĞĞµÄÄÜÁ¦
+	void RunJob(Job* job); // ï¿½Ğ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÇºÜºÃ£ï¿½Runï¿½ï¿½ï¿½ï¿½Jobï¿½Ğ±ï¿½Ö´ï¿½Ğµï¿½ï¿½ï¿½ï¿½ï¿½
 	void WaitJob(Job* job);
 	void ExecuteJob(Job* job);
 	void FinishJob(Job* job);
+	void AddContinuation(Job* job, Job* continuation);
 #pragma endregion
 
 
@@ -40,7 +41,7 @@ private:
 	bool HasJobCompleted(Job* job) { return job->_unfinishedJob == 0; }
 private:
 	void Yield() { std::this_thread::yield(); }
-	int GenerateRandomNumber(int rangeStart, int rangeEnd) { //×ó±ÕÓÒ¿ª
+	int GenerateRandomNumber(int rangeStart, int rangeEnd) { //ï¿½ï¿½ï¿½ï¿½Ò¿ï¿½
 		static bool initialized = false;
 		if (!initialized) {
 			srand(static_cast<unsigned int>(time(nullptr))); 
