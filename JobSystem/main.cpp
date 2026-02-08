@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include "JobSystem.h"
+#include "ParallelFor.h"
 
 // 测试Job函数：简单计算任务
 void SimpleTask(Job* job, void* data) {
@@ -145,6 +146,70 @@ int main() {
     std::cout << "Std deviation: " << stdDev << " ms" << std::endl;
     std::cout << "Total time: " << totalTime << " ms" << std::endl;
     std::cout << "Average FPS: " << (1000.0 / avgTime) << std::endl;
+
+    // 测试 parallel_for
+    std::cout << std::endl;
+    std::cout << "=== Parallel_For Test ===" << std::endl;
+
+    const int ARRAY_SIZE = 1000000;
+    std::vector<int> testData(ARRAY_SIZE);
+
+    // 初始化测试数据
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+        testData[i] = i;
+    }
+
+    // 测试 1: 使用 parallel_for 处理数组（使用默认 CountSplitter）
+    std::cout << "Processing " << ARRAY_SIZE << " elements with parallel_for..." << std::endl;
+    auto parallelStart = std::chrono::high_resolution_clock::now();
+
+    Job* parallelJob = parallel_for(&jobSystem, testData.data(), ARRAY_SIZE,
+        [](int* data, uint32_t count) {
+            // 对每个元素进行一些计算
+            for (uint32_t i = 0; i < count; i++) {
+                data[i] = data[i] * 2 + 1;
+            }
+        },
+        CountSplitter(256) // 当元素数量 > 256 时分割
+    );
+    jobSystem.RunJob(parallelJob);
+    jobSystem.WaitJob(parallelJob);
+
+    auto parallelEnd = std::chrono::high_resolution_clock::now();
+    double parallelTime = std::chrono::duration<double, std::milli>(parallelEnd - parallelStart).count();
+
+    std::cout << "Parallel processing completed in " << parallelTime << " ms" << std::endl;
+
+    // 验证结果（检查前10个元素）
+    std::cout << "First 10 results: ";
+    for (int i = 0; i < 10; i++) {
+        std::cout << testData[i] << " ";
+    }
+    std::cout << std::endl;
+
+    // 测试 2: 串行处理作为对比
+    std::vector<int> serialData(ARRAY_SIZE);
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+        serialData[i] = i;
+    }
+
+    std::cout << std::endl;
+    std::cout << "Processing " << ARRAY_SIZE << " elements serially..." << std::endl;
+    auto serialStart = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+        serialData[i] = serialData[i] * 2 + 1;
+    }
+
+    auto serialEnd = std::chrono::high_resolution_clock::now();
+    double serialTime = std::chrono::duration<double, std::milli>(serialEnd - serialStart).count();
+
+    std::cout << "Serial processing completed in " << serialTime << " ms" << std::endl;
+
+    // 计算加速比
+    double speedup = serialTime / parallelTime;
+    std::cout << std::endl;
+    std::cout << "Speedup: " << speedup << "x" << std::endl;
 
     // 关闭JobSystem
     std::cout << std::endl;
