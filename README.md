@@ -127,7 +127,7 @@ dumpbin /EXPORTS build\lib\Release\JobSystem.dll
 ```bash
 #!/bin/bash
 
-UNITY_PROJECT="/Users/wepie/TestProject/MyProject(1)"
+UNITY_PROJECT="Unity根目录"
 PLUGINS_DIR="$UNITY_PROJECT/Assets/Plugins"
 
 # 检测平台
