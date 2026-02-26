@@ -9,6 +9,16 @@ void JobSystem::Initialize() {
 	numThreads = std::thread::hardware_concurrency();
 	g_threadsJobQueue.resize(numThreads);
 
+	// 打开日志文件
+	frameCounter = 0;
+	logFile.open("JobSystemDebug.txt", std::ios::out | std::ios::trunc);
+	if (logFile.is_open()) {
+		logFile << "=== JobSystem Debug Log ===\n";
+		logFile << "Initialized with " << numThreads << " threads\n";
+		logFile << "============================\n\n";
+		logFile.flush();
+	}
+
 	// First, create all queues before starting threads
 	for (int i = 0; i < numThreads; i++)
 	{
@@ -174,6 +184,14 @@ void JobSystem::AddContinuation(Job* job, Job* continuation) {
 
 	// 将 continuation 添加到数组中
 	job->continuations[index] = continuation;
+}
+
+void JobSystem::Log(const char* message) {
+	std::lock_guard<std::mutex> lock(logMutex);
+	if (logFile.is_open()) {
+		logFile << message;
+		logFile.flush();
+	}
 }
 
 /// <summary>

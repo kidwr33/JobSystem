@@ -163,14 +163,15 @@ int main() {
     std::cout << "Processing " << ARRAY_SIZE << " elements with parallel_for..." << std::endl;
     auto parallelStart = std::chrono::high_resolution_clock::now();
 
-    Job* parallelJob = parallel_for(&jobSystem, testData.data(), ARRAY_SIZE,
+    CountSplitter splitter(256);  // 当元素数量 > 256 时分割
+    Job* parallelJob = parallel_for(&jobSystem, testData.data(), ARRAY_SIZE, sizeof(int),
         [](int* data, uint32_t count) {
             // 对每个元素进行一些计算
             for (uint32_t i = 0; i < count; i++) {
                 data[i] = data[i] * 2 + 1;
             }
         },
-        CountSplitter(256) // 当元素数量 > 256 时分割
+        splitter
     );
     jobSystem.RunJob(parallelJob);
     jobSystem.WaitJob(parallelJob);

@@ -1,5 +1,21 @@
 #include "WorkThreadStealQueue.h"
+#include <atomic>
+
 #define COMPILER_BARRIER std::atomic_signal_fence(std::memory_order_seq_cst)
+
+// macOS/Linux compatibility for Windows Interlocked functions
+#if !defined(_WIN32) && !defined(_WIN64)
+inline long _InterlockedExchange(volatile long* target, long value) {
+    std::atomic<long>* atomic_target = reinterpret_cast<std::atomic<long>*>(const_cast<long*>(target));
+    return atomic_target->exchange(value, std::memory_order_seq_cst);
+}
+
+inline long _InterlockedCompareExchange(volatile long* destination, long exchange, long comparand) {
+    std::atomic<long>* atomic_dest = reinterpret_cast<std::atomic<long>*>(const_cast<long*>(destination));
+    atomic_dest->compare_exchange_strong(comparand, exchange, std::memory_order_seq_cst);
+    return comparand;
+}
+#endif
 
 void WorkThreadStealQueue::Push(Job* job) {
 	long b = m_bottom;

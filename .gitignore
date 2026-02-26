@@ -27,3 +27,21 @@ bld/
 *.user
 *.userosscache
 *.sln.docstates
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Build artifacts
+build/
+*.dylib
+*.dSYM/
+
+# Executables
+JobSystemApp
+test_simple
+
+# Documentation (generated)
+*.md.backup

@@ -3,6 +3,8 @@
 #include <queue>
 #include <thread>
 #include <atomic>
+#include <fstream>
+#include <mutex>
 #include "Job.h"
 #include "WorkThreadStealQueue.h"
 #include "JobAllocator.h"
@@ -14,6 +16,11 @@ private:
 	std::vector<std::thread> workerThreads;
 	std::atomic<bool> isRunning;
 	int numThreads;
+
+	// 日志相关
+	std::ofstream logFile;
+	std::mutex logMutex;
+	int frameCounter;
 
 public:
 #pragma region JobSystem��������
@@ -31,6 +38,7 @@ public:
 	void ExecuteJob(Job* job);
 	void FinishJob(Job* job);
 	void AddContinuation(Job* job, Job* continuation);
+	void Log(const char* message);
 #pragma endregion
 
 
